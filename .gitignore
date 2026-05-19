@@ -1,0 +1,34 @@
+# Gradle
+.gradle/
+build/
+out/
+*/build/
+*/out/
+*.iml
+
+# IntelliJ
+.idea/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VSCode
+.vscode/
+
+# Minecraft runtime / mappings cache
+run/
+*/run/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+hs_err_pid*
+
+# Local config overrides
+gradle.local.properties
