@@ -1,0 +1,20 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withSourcesJar()
+}
+
+group = 'com.trienergy'
+version = rootProject.mod_version
+
+archivesBaseName = 'trienergy-api'
+
+repositories {
+    mavenCentral()
+}
