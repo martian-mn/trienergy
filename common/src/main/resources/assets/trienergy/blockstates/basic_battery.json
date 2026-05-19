@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "trienergy:block/basic_battery" }
+  }
+}

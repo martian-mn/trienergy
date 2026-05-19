@@ -1,6 +1,8 @@
 package com.trienergy.registry;
 
 import com.trienergy.TriEnergy;
+import com.trienergy.content.BasicBatteryBlock;
+import com.trienergy.content.BasicBatteryBlockEntity;
 import com.trienergy.content.EnergyConduitBlock;
 import com.trienergy.content.EnergyConduitBlockEntity;
 import com.trienergy.content.SimpleGeneratorBlock;
@@ -81,6 +83,22 @@ public final class Registries {
                     new BlockEntityType<>(
                             SimpleGeneratorBlockEntity::new,
                             java.util.Set.of(SIMPLE_GENERATOR_BLOCK.get())));
+
+    public static final RegistrySupplier<Block> BASIC_BATTERY_BLOCK =
+            BLOCKS.register("basic_battery", () -> new BasicBatteryBlock(
+                    BasicBatteryBlock.defaultProperties()
+                            .setId(blockKey("basic_battery"))));
+
+    public static final RegistrySupplier<Item> BASIC_BATTERY_ITEM =
+            ITEMS.register("basic_battery", () -> new BlockItem(
+                    BASIC_BATTERY_BLOCK.get(),
+                    new Item.Properties().setId(itemKey("basic_battery"))));
+
+    public static final RegistrySupplier<BlockEntityType<BasicBatteryBlockEntity>> BASIC_BATTERY_BE =
+            BLOCK_ENTITY_TYPES.register("basic_battery", () ->
+                    new BlockEntityType<>(
+                            BasicBatteryBlockEntity::new,
+                            java.util.Set.of(BASIC_BATTERY_BLOCK.get())));
 
     private Registries() {}
 
