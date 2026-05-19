@@ -43,6 +43,9 @@ dependencies {
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
+
+    // TriEnergy API module — needed directly by NeoForge-specific code (capability adapter).
+    implementation project(':api')
 }
 
 processResources {
