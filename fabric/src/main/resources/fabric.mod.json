@@ -3,23 +3,18 @@
   "id": "trienergy",
   "version": "${version}",
   "name": "TriEnergy",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "description": "Three energy forms, one engineering puzzle. Pre-release.",
   "authors": [
-    "Me!"
+    "puckstop"
   ],
-  "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
-  },
-  "license": "CC0-1.0",
-  "icon": "assets/trienergy/icon.png",
+  "license": "MIT",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.trienergy.fabric.ExampleModFabric"
+      "com.trienergy.fabric.TriEnergyFabric"
     ],
     "client": [
-      "com.trienergy.fabric.client.ExampleModFabricClient"
+      "com.trienergy.fabric.client.TriEnergyFabricClient"
     ]
   },
   "mixins": [
@@ -31,8 +26,5 @@
     "java": ">=21",
     "architectury": ">=15.0.3",
     "fabric-api": "*"
-  },
-  "suggests": {
-    "another-mod": "*"
   }
 }
