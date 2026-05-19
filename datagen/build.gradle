@@ -1,0 +1,11 @@
+// datagen module — empty placeholder at Milestone 0.
+// Future home for recipe / model / lang / loot generators.
+// Loom and Minecraft dependencies are inherited from the root subprojects { } block.
+
+architectury {
+    common rootProject.enabled_platforms.split(',')
+}
+
+dependencies {
+    implementation project(':common')
+}
