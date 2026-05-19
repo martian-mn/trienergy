@@ -12,7 +12,7 @@ public final class Node {
     private final Set<BlockPos> neighbors = new HashSet<>();
     /** Non-null iff {@code type == MACHINE}. */
     private MachinePeripheral peripheral;
-    private Object network;   // back-reference; will be retyped to NetworkImpl in T3
+    private NetworkImpl network;
 
     public Node(BlockPos pos, NodeType type) {
         this.pos = pos;
@@ -22,10 +22,10 @@ public final class Node {
     public BlockPos pos() { return pos; }
     public NodeType type() { return type; }
     public Set<BlockPos> neighbors() { return neighbors; }
-    public Object network() { return network; }
+    public NetworkImpl network() { return network; }
 
     /** Package-private — only NetworkRegistry should reassign a node's network. */
-    void setNetwork(Object network) { this.network = network; }
+    void setNetwork(NetworkImpl network) { this.network = network; }
 
     public MachinePeripheral peripheral() { return peripheral; }
     public void setPeripheral(MachinePeripheral peripheral) { this.peripheral = peripheral; }
