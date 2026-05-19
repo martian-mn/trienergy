@@ -47,6 +47,8 @@ dependencies {
 
     // TriEnergy API module — needed directly by Fabric-specific code (capability adapter).
     implementation project(':api')
+    // Wire :api into Loom's dev runtime classpath so runClient can see api classes.
+    include project(':api')
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')

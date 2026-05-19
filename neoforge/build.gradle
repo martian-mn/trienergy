@@ -47,6 +47,8 @@ dependencies {
 
     // TriEnergy API module — needed directly by NeoForge-specific code (capability adapter).
     implementation project(':api')
+    // Wire :api into Loom's dev runtime classpath so runClient can see api classes.
+    forgeRuntimeLibrary project(':api')
 }
 
 processResources {
