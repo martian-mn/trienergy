@@ -5,6 +5,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
 import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
 
 public final class NetworkRegistry {
     private static final Direction[] DIRECTIONS = Direction.values();
@@ -106,5 +110,118 @@ public final class NetworkRegistry {
         return target;
     }
 
-    // break / split methods come in T5.
+    public void breakConduit(BlockPos pos) {
+        NetworkImpl net = byPosition.get(pos);
+        if (net == null) return;
+
+        Node broken = net.nodesMap().remove(pos);
+        if (broken == null) return;
+
+        Set<BlockPos> remainingNeighbors = new HashSet<>(broken.neighbors());
+        // Clean up adjacency in the remaining nodes
+        for (BlockPos n : remainingNeighbors) {
+            Node neighborNode = net.nodesMap().get(n);
+            if (neighborNode != null) {
+                neighborNode.neighbors().remove(pos);
+            }
+            Set<BlockPos> nbrEdges = net.edgesMap().get(n);
+            if (nbrEdges != null) nbrEdges.remove(pos);
+        }
+        net.edgesMap().remove(pos);
+        byPosition.remove(pos);
+        Set<UUID> chunkNets = byChunk.get(chunkKey(pos));
+        if (chunkNets != null) {
+            // Only remove the network from the chunk if it has no more nodes in that chunk.
+            boolean stillInChunk = false;
+            for (BlockPos other : net.nodes()) {
+                if (chunkKey(other) == chunkKey(pos)) {
+                    stillInChunk = true;
+                    break;
+                }
+            }
+            if (!stillInChunk) chunkNets.remove(net.id());
+        }
+
+        // If the network is now empty, delete it.
+        if (net.nodesMap().isEmpty()) {
+            byId.remove(net.id());
+            return;
+        }
+
+        // Split detection — need at least 2 remaining neighbours to potentially split.
+        if (remainingNeighbors.size() < 2) {
+            return;
+        }
+
+        // BFS from each remaining neighbor; collect unique reachable sets.
+        List<Set<BlockPos>> components = new ArrayList<>();
+        Set<BlockPos> visited = new HashSet<>();
+        for (BlockPos start : remainingNeighbors) {
+            if (visited.contains(start)) continue;
+            if (!net.nodesMap().containsKey(start)) continue;
+            Set<BlockPos> component = bfs(net, start);
+            visited.addAll(component);
+            components.add(component);
+        }
+
+        if (components.size() <= 1) return;  // still connected
+
+        // Split: keep the largest component in the existing network, move the others to new networks.
+        Set<BlockPos> keepers = components.stream()
+                .max(Comparator.comparingInt(Set::size))
+                .orElseThrow();
+        for (Set<BlockPos> component : components) {
+            if (component == keepers) continue;
+            NetworkImpl newNet = createNew(net.conduitType());
+            for (BlockPos p : component) {
+                Node node = net.nodesMap().remove(p);
+                node.setNetwork(newNet);
+                newNet.nodesMap().put(p, node);
+                Set<BlockPos> edges = net.edgesMap().remove(p);
+                newNet.edgesMap().put(p, edges != null ? edges : new HashSet<>());
+                byPosition.put(p, newNet);
+                byChunk.computeIfAbsent(chunkKey(p), k -> new HashSet<>()).add(newNet.id());
+            }
+            moveCategories(net, newNet, component);
+        }
+
+        // Recompute the old network's byChunk presence (its nodes shrunk).
+        rebuildByChunkFor(net);
+    }
+
+    private Set<BlockPos> bfs(NetworkImpl net, BlockPos start) {
+        Set<BlockPos> visited = new HashSet<>();
+        Deque<BlockPos> queue = new ArrayDeque<>();
+        queue.add(start);
+        visited.add(start);
+        while (!queue.isEmpty()) {
+            BlockPos current = queue.poll();
+            Set<BlockPos> edges = net.edgesMap().get(current);
+            if (edges == null) continue;
+            for (BlockPos next : edges) {
+                if (visited.add(next)) queue.add(next);
+            }
+        }
+        return visited;
+    }
+
+    private void moveCategories(NetworkImpl from, NetworkImpl to, Set<BlockPos> positions) {
+        for (BlockPos p : positions) {
+            if (from.sourcesSet().remove(p))   to.sourcesSet().add(p);
+            if (from.consumersSet().remove(p)) to.consumersSet().add(p);
+            if (from.storageSet().remove(p))   to.storageSet().add(p);
+        }
+    }
+
+    private void rebuildByChunkFor(NetworkImpl net) {
+        // Find which chunks the network's remaining nodes are in.
+        Set<Long> presentChunks = new HashSet<>();
+        for (BlockPos p : net.nodes()) presentChunks.add(chunkKey(p));
+        // Remove from chunks where it no longer has presence.
+        for (Map.Entry<Long, Set<UUID>> entry : byChunk.entrySet()) {
+            if (!presentChunks.contains(entry.getKey())) {
+                entry.getValue().remove(net.id());
+            }
+        }
+    }
 }
