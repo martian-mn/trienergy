@@ -4,8 +4,12 @@ import com.trienergy.api.ConduitType;
 import com.trienergy.api.MachinePeripheral;
 import com.trienergy.api.events.NetworkChangedEvent;
 import com.trienergy.network.events.EventBus;
+import com.trienergy.network.persistence.NetworkNbt;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.*;
@@ -28,7 +32,7 @@ public final class NetworkRegistry {
     private final Map<Long, Set<UUID>> byChunk = new HashMap<>();
 
     /** Pack chunk coordinates as a long without touching ChunkPos. */
-    private static long chunkKey(BlockPos pos) {
+    public static long chunkKey(BlockPos pos) {
         return ((long)(pos.getX() >> 4) << 32) | ((pos.getZ() >> 4) & 0xFFFFFFFFL);
     }
 
@@ -294,6 +298,129 @@ public final class NetworkRegistry {
         for (Map.Entry<Long, Set<UUID>> entry : byChunk.entrySet()) {
             if (!presentChunks.contains(entry.getKey())) {
                 entry.getValue().remove(net.id());
+            }
+        }
+    }
+
+    /**
+     * Serialize the networks that have nodes in {@code chunkKey} and remove those
+     * nodes from in-memory state.  Returns {@code null} if no networks are present.
+     * The returned tag can be persisted to the chunk's NBT and later passed to
+     * {@link #restoreChunk(long, CompoundTag)}.
+     *
+     * @param chunkKey packed chunk coordinate — use {@link #chunkKey(BlockPos)} to obtain
+     */
+    public CompoundTag suspendChunk(long chunkKey) {
+        Set<UUID> netsInChunk = byChunk.remove(chunkKey);
+        if (netsInChunk == null || netsInChunk.isEmpty()) return null;
+
+        CompoundTag root = new CompoundTag();
+        ListTag list = new ListTag();
+        for (UUID netId : netsInChunk) {
+            NetworkImpl net = byId.get(netId);
+            if (net == null) continue;
+            // Collect this network's nodes that live in the suspending chunk.
+            Set<BlockPos> inChunk = new HashSet<>();
+            for (BlockPos pos : net.nodes()) {
+                if (chunkKey(pos) == chunkKey) inChunk.add(pos);
+            }
+            // Save before mutating the network.
+            list.add(NetworkNbt.save(net, inChunk));
+            // Drop the in-chunk nodes from in-memory state.
+            for (BlockPos pos : inChunk) {
+                net.nodesMap().remove(pos);
+                net.edgesMap().remove(pos);
+                byPosition.remove(pos);
+            }
+            // Clean up neighbor-edge references in still-loaded nodes.
+            for (BlockPos pos : inChunk) {
+                for (Direction dir : DIRECTIONS) {
+                    BlockPos neighbor = pos.relative(dir);
+                    Node neighborNode = net.nodesMap().get(neighbor);
+                    if (neighborNode != null) {
+                        neighborNode.neighbors().remove(pos);
+                    }
+                    Set<BlockPos> neighborEdges = net.edgesMap().get(neighbor);
+                    if (neighborEdges != null) neighborEdges.remove(pos);
+                }
+            }
+            // If the network has no remaining nodes, mark SUSPENDED and remove from byId.
+            if (net.nodesMap().isEmpty()) {
+                net.setState(com.trienergy.api.NetworkState.SUSPENDED);
+                byId.remove(netId);
+            }
+        }
+        root.put("networks", list);
+        return root;
+    }
+
+    /**
+     * Deserialize and re-attach the networks previously saved by {@link #suspendChunk}.
+     * Nodes are registered as {@link NodeType#CONDUIT}; machine block-entities re-attach
+     * themselves via {@link #placeMachine} when their block-entity loads.
+     *
+     * @param chunkKey packed chunk coordinate — must equal the key passed to suspendChunk
+     * @param tag      the tag returned by suspendChunk (no-op if null)
+     */
+    public void restoreChunk(long chunkKey, CompoundTag tag) {
+        if (tag == null) return;
+        ListTag list = tag.getList("networks", Tag.TAG_COMPOUND);
+        for (int i = 0; i < list.size(); i++) {
+            NetworkNbt.RestoredNetwork restored = NetworkNbt.load(list.getCompound(i));
+            com.trienergy.api.ConduitType conduitType =
+                    com.trienergy.api.ConduitTypeRegistry.instance()
+                            .get(ResourceLocation.parse(restored.conduitTypeId()))
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Unknown conduit type during restore: " + restored.conduitTypeId()));
+
+            NetworkImpl existing = byId.get(restored.id());
+            NetworkImpl target;
+            if (existing != null) {
+                target = existing;
+            } else {
+                target = new NetworkImpl(restored.id(), conduitType);
+                target.setRegistry(this);
+                target.setState(com.trienergy.api.NetworkState.IDLE);
+                byId.put(target.id(), target);
+            }
+
+            for (BlockPos pos : restored.nodes()) {
+                Node node = new Node(pos, NodeType.CONDUIT);
+                node.setNetwork(target);
+                target.nodesMap().put(pos, node);
+                target.edgesMap().computeIfAbsent(pos, k -> new HashSet<>());
+                byPosition.put(pos, target);
+                byChunk.computeIfAbsent(chunkKey, k -> new HashSet<>()).add(target.id());
+            }
+
+            // Wire edges to any already-loaded neighbors within this network.
+            for (BlockPos pos : restored.nodes()) {
+                for (Direction dir : DIRECTIONS) {
+                    BlockPos neighbor = pos.relative(dir);
+                    if (target.nodesMap().containsKey(neighbor)) {
+                        target.edgesMap().computeIfAbsent(pos, k -> new HashSet<>()).add(neighbor);
+                        target.edgesMap().computeIfAbsent(neighbor, k -> new HashSet<>()).add(pos);
+                        target.nodesMap().get(pos).neighbors().add(neighbor);
+                        target.nodesMap().get(neighbor).neighbors().add(pos);
+                    }
+                }
+            }
+
+            // Cross-chunk reconciliation: merge with any adjacent neighbor in a different
+            // network of the same conduit type (i.e. the chunk boundary).
+            // Snapshot iteration set because mergeNetworks may update byPosition entries.
+            NetworkImpl[] targetRef = {target};
+            for (BlockPos pos : new HashSet<>(restored.nodes())) {
+                for (Direction dir : DIRECTIONS) {
+                    BlockPos neighbor = pos.relative(dir);
+                    NetworkImpl other = byPosition.get(neighbor);
+                    if (other != null && other != targetRef[0]
+                            && other.conduitType().id().equals(conduitType.id())) {
+                        targetRef[0] = mergeNetworks(Set.of(targetRef[0], other));
+                        // mergeNetworks may have assigned a new winner; re-resolve target.
+                        targetRef[0] = byPosition.get(pos);
+                    }
+                }
             }
         }
     }
