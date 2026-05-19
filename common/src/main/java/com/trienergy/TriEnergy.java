@@ -14,5 +14,6 @@ public final class TriEnergy {
         ConduitTypeRegistryImpl.install();
         ConduitTypeRegistry.instance().register(EnergyConduitType.INSTANCE);
         com.trienergy.registry.Registries.register();
+        com.trienergy.network.bench.BenchmarkCommand.register();
     }
 }
