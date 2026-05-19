@@ -1,8 +1,10 @@
 package com.trienergy.network;
 
 import com.trienergy.api.ConduitType;
+import com.trienergy.api.MachinePeripheral;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.*;
 import java.util.ArrayDeque;
@@ -31,6 +33,58 @@ public final class NetworkRegistry {
     public NetworkImpl networkAt(BlockPos pos) { return byPosition.get(pos); }
     public Collection<NetworkImpl> allNetworks() {
         return Collections.unmodifiableCollection(byId.values());
+    }
+
+    public NetworkImpl placeMachine(MachinePeripheral peripheral) {
+        BlockPos pos = peripheral.position();
+        if (byPosition.containsKey(pos)) {
+            throw new IllegalStateException("Position already has a network node: " + pos);
+        }
+
+        ResourceLocation typeId = peripheral.conduitTypeId();
+        ConduitType conduitType = com.trienergy.api.ConduitTypeRegistry.instance().get(typeId)
+                .orElseThrow(() -> new IllegalStateException("Unknown conduit type: " + typeId));
+
+        // Find adjacent networks of the matching type
+        Set<NetworkImpl> adjacent = new HashSet<>();
+        for (Direction dir : DIRECTIONS) {
+            NetworkImpl n = byPosition.get(pos.relative(dir));
+            if (n != null && n.conduitType().id().equals(conduitType.id())) {
+                adjacent.add(n);
+            }
+        }
+
+        NetworkImpl target = switch (adjacent.size()) {
+            case 0 -> createNew(conduitType);
+            case 1 -> adjacent.iterator().next();
+            default -> mergeNetworks(adjacent);
+        };
+
+        Node node = new Node(pos, NodeType.MACHINE);
+        node.setPeripheral(peripheral);
+        node.setNetwork(target);
+        target.nodesMap().put(pos, node);
+        target.edgesMap().computeIfAbsent(pos, k -> new HashSet<>());
+        byPosition.put(pos, target);
+        byChunk.computeIfAbsent(chunkKey(pos), k -> new HashSet<>()).add(target.id());
+
+        // Wire edges to adjacent nodes already in the network
+        for (Direction dir : DIRECTIONS) {
+            BlockPos neighborPos = pos.relative(dir);
+            if (target.nodesMap().containsKey(neighborPos) && !neighborPos.equals(pos)) {
+                target.edgesMap().computeIfAbsent(pos, k -> new HashSet<>()).add(neighborPos);
+                target.edgesMap().computeIfAbsent(neighborPos, k -> new HashSet<>()).add(pos);
+                target.nodesMap().get(pos).neighbors().add(neighborPos);
+                target.nodesMap().get(neighborPos).neighbors().add(pos);
+            }
+        }
+
+        int roles = peripheral.roles();
+        if ((roles & MachinePeripheral.Role.SOURCE.mask)   != 0) target.sourcesSet().add(pos);
+        if ((roles & MachinePeripheral.Role.CONSUMER.mask) != 0) target.consumersSet().add(pos);
+        if ((roles & MachinePeripheral.Role.STORAGE.mask)  != 0) target.storageSet().add(pos);
+
+        return target;
     }
 
     public NetworkImpl placeConduit(BlockPos pos, ConduitType conduitType) {

@@ -38,8 +38,9 @@ public final class NetworkImpl implements Network {
                 Set.copyOf(sources), Set.copyOf(consumers), Set.copyOf(storage));
     }
 
-    // Package-private mutators — used by NetworkRegistry, NetworkScheduler, EnergyConduitType.
-    Map<BlockPos, Node> nodesMap() { return nodes; }
+    // Package-accessible mutators — used by NetworkRegistry, NetworkScheduler, EnergyConduitType.
+    // nodesMap() is public so EnergyConduitType (in the types subpackage) can access it.
+    public Map<BlockPos, Node> nodesMap() { return nodes; }
     Map<BlockPos, Set<BlockPos>> edgesMap() { return edges; }
     Set<BlockPos> sourcesSet() { return sources; }
     Set<BlockPos> consumersSet() { return consumers; }
