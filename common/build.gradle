@@ -15,6 +15,10 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Use raw (Mojang-named) class files from :api so tests run without
+    // intermediary-→-named remapping issues at runtime.
+    testRuntimeOnly files(project(':api').sourceSets.main.output)
 }
 
 repositories {
