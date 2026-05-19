@@ -3,6 +3,8 @@ package com.trienergy.registry;
 import com.trienergy.TriEnergy;
 import com.trienergy.content.EnergyConduitBlock;
 import com.trienergy.content.EnergyConduitBlockEntity;
+import com.trienergy.content.SimpleGeneratorBlock;
+import com.trienergy.content.SimpleGeneratorBlockEntity;
 import com.trienergy.content.TestBlock;
 import dev.architectury.registry.registries.DeferredRegister;
 import dev.architectury.registry.registries.RegistrySupplier;
@@ -63,6 +65,22 @@ public final class Registries {
                     new BlockEntityType<>(
                             EnergyConduitBlockEntity::new,
                             java.util.Set.of(ENERGY_CONDUIT_BLOCK.get())));
+
+    public static final RegistrySupplier<Block> SIMPLE_GENERATOR_BLOCK =
+            BLOCKS.register("simple_generator", () -> new SimpleGeneratorBlock(
+                    SimpleGeneratorBlock.defaultProperties()
+                            .setId(blockKey("simple_generator"))));
+
+    public static final RegistrySupplier<Item> SIMPLE_GENERATOR_ITEM =
+            ITEMS.register("simple_generator", () -> new BlockItem(
+                    SIMPLE_GENERATOR_BLOCK.get(),
+                    new Item.Properties().setId(itemKey("simple_generator"))));
+
+    public static final RegistrySupplier<BlockEntityType<SimpleGeneratorBlockEntity>> SIMPLE_GENERATOR_BE =
+            BLOCK_ENTITY_TYPES.register("simple_generator", () ->
+                    new BlockEntityType<>(
+                            SimpleGeneratorBlockEntity::new,
+                            java.util.Set.of(SIMPLE_GENERATOR_BLOCK.get())));
 
     private Registries() {}
 
