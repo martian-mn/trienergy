@@ -24,6 +24,10 @@ Produces:
 
 Pre-release. Milestone 0 (scaffolding) is the current target.
 
+## Smoke tests
+
+- NeoForge: ✅ Launches, `/give @p trienergy:test_block` works and block is placeable. (M0)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
