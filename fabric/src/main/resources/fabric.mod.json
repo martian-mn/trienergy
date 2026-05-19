@@ -17,6 +17,7 @@
       "com.trienergy.fabric.client.TriEnergyFabricClient"
     ]
   },
+  "accessWidener": "trienergy.accesswidener",
   "mixins": [
     "trienergy.mixins.json"
   ],

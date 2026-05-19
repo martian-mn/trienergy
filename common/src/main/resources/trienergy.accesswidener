@@ -1,0 +1,4 @@
+accessWidener v2 named
+
+# BlockEntityType constructor — private in vanilla 1.21.4; needed for common-module registration.
+accessible method net/minecraft/world/level/block/entity/BlockEntityType <init> (Lnet/minecraft/world/level/block/entity/BlockEntityType$BlockEntitySupplier;Ljava/util/Set;)V
