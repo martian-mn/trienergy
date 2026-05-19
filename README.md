@@ -22,12 +22,13 @@ Produces:
 
 ## Status
 
-Pre-release. Milestone 0 (scaffolding) is the current target.
+Pre-release. Milestones 0 (scaffolding) and 1 (energy & logistics backbone) complete.
 
 ## Smoke tests
 
 - NeoForge: ✅ Launches, `/give @p trienergy:test_block` works and block is placeable. (M0)
 - Fabric: ✅ Launches, `/give @p trienergy:test_block` works and block is placeable. (M0)
+- M1 smoke (both loaders): ✅ Generator → conduit → consumer chain delivers energy; `/trienergy benchmark` populates `run/benchmarks/<timestamp>.csv`.
 
 ## License
 
