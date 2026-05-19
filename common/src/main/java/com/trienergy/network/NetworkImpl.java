@@ -18,6 +18,7 @@ public final class NetworkImpl implements Network {
     private final Set<BlockPos> storage = new HashSet<>();
     private NetworkState state = NetworkState.IDLE;
     private long lastTickGameTime = 0L;
+    private NetworkRegistry registry;
 
     public NetworkImpl(UUID id, ConduitType conduitType) {
         this.id = Objects.requireNonNull(id);
@@ -48,4 +49,6 @@ public final class NetworkImpl implements Network {
     void setState(NetworkState state) { this.state = state; }
     long lastTickGameTime() { return lastTickGameTime; }
     void setLastTickGameTime(long t) { this.lastTickGameTime = t; }
+    public NetworkRegistry registry() { return registry; }
+    void setRegistry(NetworkRegistry r) { this.registry = r; }
 }

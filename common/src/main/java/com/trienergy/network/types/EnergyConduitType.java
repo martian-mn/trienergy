@@ -4,7 +4,9 @@ import com.trienergy.TriEnergy;
 import com.trienergy.api.ConduitType;
 import com.trienergy.api.EnergyPeripheral;
 import com.trienergy.api.Network;
+import com.trienergy.api.events.EnergyFlowEvent;
 import com.trienergy.network.NetworkImpl;
+import com.trienergy.network.NetworkRegistry;
 import com.trienergy.network.Node;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -69,6 +71,28 @@ public final class EnergyConduitType implements ConduitType {
                 }
             }
         }
+
+        NetworkRegistry registry = impl.registry();
+        if (registry != null) {
+            long storageChargedNet = surplus > 0
+                    ? Math.min(surplus, computeStorageCapacity(impl, nodes))
+                    : -suppliedFromStorage;
+            registry.eventBus().publish(new EnergyFlowEvent(
+                    impl.snapshot(),
+                    /* sourcesEmitted */    suppliedFromDirect,
+                    /* consumersReceived */ suppliedFromDirect + suppliedFromStorage,
+                    /* storageChargedNet */ storageChargedNet
+            ));
+        }
+    }
+
+    private static long computeStorageCapacity(NetworkImpl impl, Map<BlockPos, Node> nodes) {
+        long cap = 0L;
+        for (BlockPos pos : impl.storage()) {
+            EnergyPeripheral ep = energyAt(nodes, pos);
+            if (ep != null) cap += ep.maxIntakeThisTick();
+        }
+        return cap;
     }
 
     private static EnergyPeripheral energyAt(Map<BlockPos, Node> nodes, BlockPos pos) {

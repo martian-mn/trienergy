@@ -2,6 +2,8 @@ package com.trienergy.network;
 
 import com.trienergy.api.ConduitType;
 import com.trienergy.api.MachinePeripheral;
+import com.trienergy.api.events.NetworkChangedEvent;
+import com.trienergy.network.events.EventBus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -15,6 +17,7 @@ import java.util.List;
 public final class NetworkRegistry {
     private static final Direction[] DIRECTIONS = Direction.values();
 
+    private final EventBus eventBus = new EventBus();
     private final Map<UUID, NetworkImpl> byId = new HashMap<>();
     private final Map<BlockPos, NetworkImpl> byPosition = new HashMap<>();
     /**
@@ -28,6 +31,8 @@ public final class NetworkRegistry {
     private static long chunkKey(BlockPos pos) {
         return ((long)(pos.getX() >> 4) << 32) | ((pos.getZ() >> 4) & 0xFFFFFFFFL);
     }
+
+    public EventBus eventBus() { return eventBus; }
 
     public int networkCount() { return byId.size(); }
     public NetworkImpl networkAt(BlockPos pos) { return byPosition.get(pos); }
@@ -84,6 +89,10 @@ public final class NetworkRegistry {
         if ((roles & MachinePeripheral.Role.CONSUMER.mask) != 0) target.consumersSet().add(pos);
         if ((roles & MachinePeripheral.Role.STORAGE.mask)  != 0) target.storageSet().add(pos);
 
+        eventBus.publish(new NetworkChangedEvent(
+                java.util.List.of(),
+                java.util.List.of(target.snapshot())
+        ));
         return target;
     }
 
@@ -128,11 +137,16 @@ public final class NetworkRegistry {
             }
         }
 
+        eventBus.publish(new NetworkChangedEvent(
+                java.util.List.of(),
+                java.util.List.of(target.snapshot())
+        ));
         return target;
     }
 
     private NetworkImpl createNew(ConduitType conduitType) {
         NetworkImpl n = new NetworkImpl(UUID.randomUUID(), conduitType);
+        n.setRegistry(this);
         byId.put(n.id(), n);
         return n;
     }
@@ -199,6 +213,7 @@ public final class NetworkRegistry {
         // If the network is now empty, delete it.
         if (net.nodesMap().isEmpty()) {
             byId.remove(net.id());
+            eventBus.publish(new NetworkChangedEvent(java.util.List.of(), java.util.List.of()));
             return;
         }
 
@@ -241,6 +256,10 @@ public final class NetworkRegistry {
 
         // Recompute the old network's byChunk presence (its nodes shrunk).
         rebuildByChunkFor(net);
+
+        java.util.List<com.trienergy.api.NetworkSnapshot> afterSnapshots = new java.util.ArrayList<>();
+        if (byId.containsKey(net.id())) afterSnapshots.add(net.snapshot());
+        eventBus.publish(new NetworkChangedEvent(java.util.List.of(), afterSnapshots));
     }
 
     private Set<BlockPos> bfs(NetworkImpl net, BlockPos start) {

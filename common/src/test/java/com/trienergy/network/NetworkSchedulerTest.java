@@ -45,4 +45,18 @@ class NetworkSchedulerTest {
         NetworkImpl net = registry.networkAt(new BlockPos(1, 64, 0));
         assertEquals(NetworkState.IDLE, net.state());
     }
+
+    @Test
+    void networkChangedEventFiresOnPlaceConduit() {
+        NetworkRegistry registry = new NetworkRegistry();
+        final int[] count = {0};
+        registry.eventBus().subscribe(
+                com.trienergy.api.events.NetworkChangedEvent.class,
+                e -> count[0]++);
+
+        registry.placeConduit(new BlockPos(0, 64, 0), EnergyConduitType.INSTANCE);
+        registry.placeConduit(new BlockPos(1, 64, 0), EnergyConduitType.INSTANCE);
+
+        assertTrue(count[0] >= 2, "Expected at least 2 NetworkChangedEvents, got " + count[0]);
+    }
 }
