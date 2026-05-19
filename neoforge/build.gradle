@@ -48,7 +48,10 @@ dependencies {
     // TriEnergy API module — needed directly by NeoForge-specific code (capability adapter).
     implementation project(':api')
     // Wire :api into Loom's dev runtime classpath so runClient can see api classes.
-    forgeRuntimeLibrary project(':api')
+    // Use raw compiled output (mojang-mapped) rather than the remapped jar artifact —
+    // Loom remaps :api's jar to intermediary names, which mismatches the mojang-mapped
+    // dev workspace and causes NoSuchMethodError at runtime.
+    forgeRuntimeLibrary files(project(':api').sourceSets.main.output)
 }
 
 processResources {
