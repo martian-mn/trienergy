@@ -5,6 +5,8 @@ import com.trienergy.content.BasicBatteryBlock;
 import com.trienergy.content.BasicBatteryBlockEntity;
 import com.trienergy.content.EnergyConduitBlock;
 import com.trienergy.content.EnergyConduitBlockEntity;
+import com.trienergy.content.SimpleConsumerBlock;
+import com.trienergy.content.SimpleConsumerBlockEntity;
 import com.trienergy.content.SimpleGeneratorBlock;
 import com.trienergy.content.SimpleGeneratorBlockEntity;
 import com.trienergy.content.TestBlock;
@@ -99,6 +101,22 @@ public final class Registries {
                     new BlockEntityType<>(
                             BasicBatteryBlockEntity::new,
                             java.util.Set.of(BASIC_BATTERY_BLOCK.get())));
+
+    public static final RegistrySupplier<Block> SIMPLE_CONSUMER_BLOCK =
+            BLOCKS.register("simple_consumer", () -> new SimpleConsumerBlock(
+                    SimpleConsumerBlock.defaultProperties()
+                            .setId(blockKey("simple_consumer"))));
+
+    public static final RegistrySupplier<Item> SIMPLE_CONSUMER_ITEM =
+            ITEMS.register("simple_consumer", () -> new BlockItem(
+                    SIMPLE_CONSUMER_BLOCK.get(),
+                    new Item.Properties().setId(itemKey("simple_consumer"))));
+
+    public static final RegistrySupplier<BlockEntityType<SimpleConsumerBlockEntity>> SIMPLE_CONSUMER_BE =
+            BLOCK_ENTITY_TYPES.register("simple_consumer", () ->
+                    new BlockEntityType<>(
+                            SimpleConsumerBlockEntity::new,
+                            java.util.Set.of(SIMPLE_CONSUMER_BLOCK.get())));
 
     private Registries() {}
 
